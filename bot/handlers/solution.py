@@ -1,10 +1,10 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, FSInputFile
 from aiogram.filters import Command
 import logging
-git
 from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api
 from bot.keyboards import show_tasks, create_task_list_keyboard, create_task_choice_keyboard
+from pathlib import Path
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -102,15 +102,15 @@ async def view_task_details(callback: CallbackQuery):
             await callback.answer("❌ Задача не найдена или уже назначена")
             return
 
-        if task.get("file_id"):
-            try:
-                with open(task["file_id"]) :
-                    if task["file_id"].startswith("AgAC"):
-                        await callback.message.answer_photo(task["file_id"], caption="Прикрепленный файл")
-                    else:
-                        await callback.message.answer_document(task["file_id"], caption="Прикрепленный файл")
-            except FileNotFoundError:
-                await callback.answer("Файл не найден на сервере")
+        # if task.get("file_id"):
+        #     try:
+        #         with open(task["file_id"]) :
+        #             if task["file_id"].startswith("AgAC"):
+        #                 await callback.message.answer_photo(task["file_id"], caption="Прикрепленный файл")
+        #             else:
+        #                 await callback.message.answer_document(task["file_id"], caption="Прикрепленный файл")
+        #     except FileNotFoundError:
+        #         await callback.answer("Файл не найден на сервере")
 
         # Формируем сообщение с деталями задачи
         task_text = f"""
@@ -124,11 +124,16 @@ async def view_task_details(callback: CallbackQuery):
 Хотите взять эту задачу?
         """.strip()
 
-        await callback.message.answer(
-            task_text,
-            reply_markup=await create_task_choice_keyboard(task_id)
-        ) # заменил edit_text -> answer
+        kb = await create_task_choice_keyboard(task_id)
 
+        if task.get("file_id"):
+            await callback.message.answer_photo(
+                photo=task["file_id"],
+                caption=task_text,
+                reply_markup=kb
+            )
+        else:
+            await callback.message.answer(task_text, reply_markup=kb)
     except Exception as e:
         logger.error(f"Ошибка при просмотре задачи {task_id} пользователем {user_id}: {e}")
         await callback.answer("❌ Ошибка при загрузке задачи")

@@ -1,7 +1,6 @@
 import logging
 from httpx import AsyncClient
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -9,12 +8,10 @@ API_URL = "http://localhost:8000"  # Адрес сервера FastAPI
 
 # ---------- TASKS ----------
 async def create_task_api(task_data: dict):
-    async with AsyncClient(base_url=API_URL) as client:
-        logger.info(f"POST /new_task -> {task_data}")
-        resp = await client.post("/new_task", json=task_data)
-        logger.info(f"Response [{resp.status_code}]: {resp.text}")
-        resp.raise_for_status()
-        return resp.json()
+        async with AsyncClient(base_url=API_URL) as client:
+            resp = await client.post("/create_task", json = task_data)
+            resp.raise_for_status()
+            return resp.json()
 
 async def get_task_api(task_id: int):
     async with AsyncClient(base_url=API_URL) as client:

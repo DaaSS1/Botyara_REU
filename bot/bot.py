@@ -6,7 +6,7 @@ from bot.handlers import start, tasks, solution
 storage = MemoryStorage()
 
 async def main():
-    bot = Bot(token = "")
+    bot = Bot(token = "8366768334:AAFrRoi2g19PawY3dWl15ZFInGxCrLp_pjk")
     dp = Dispatcher(storage = storage)
     # подключение миддлваря
     # подключение роутера

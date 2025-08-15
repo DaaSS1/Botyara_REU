@@ -1,4 +1,3 @@
-from Demos.RegCreateKeyTransacted import keyname
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeyboardButton, KeyboardButton
 
 

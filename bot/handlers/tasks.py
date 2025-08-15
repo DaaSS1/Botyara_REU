@@ -42,10 +42,12 @@ async def handle_task_text(message: Message, state: FSMContext):
     elif message.document:
         content = f"[Файл] {message.document.file_name}"
     elif message.photo:
-        content = "PHOTO"
+        # saved_id = await save_user_image(message)
+        # file_id = saved_id
+        # content = "[Фото]" if file_id else "PHOTO"
         file_id = message.photo[-1].file_id
 
-    await state.update_data(problem_text=content, file_id = file_id)
+    await state.update_data(problem_text=content, file_id=file_id)
     logger.info(f"User {user_id} прислал текст задачи: {content}")
     await message.answer("🧠 Выбери предмет задачи:", reply_markup=await set_subject())
     await state.set_state(TaskStates.waiting_for_subject)

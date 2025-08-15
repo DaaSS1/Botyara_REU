@@ -10,4 +10,4 @@ class Tasks(Base):
     solver_id = Column(Integer, nullable=True)
     status = Column(String)
     deadline = Column(TIMESTAMP)
-    file_id = Column(Integer, nullable=True)
+    file_id = Column(String, nullable=True)

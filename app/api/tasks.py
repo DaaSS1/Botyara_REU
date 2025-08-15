@@ -17,19 +17,24 @@ def get_all_tasks(db: Session = Depends(get_db)):
 @router.get("/task/{task_id}", response_model=TaskResponse)
 def get_one_task(task_id: int, db: Session = Depends(get_db)):
     db_task = get_task(db, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
     return db_task
 
 @router.get("/active_tasks")
 def active_tasks(deadline: datetime, db: Session = Depends(get_db)):
     return get_active_task(db, deadline)
 
-@router.post("/new_task")
-def new_task(task_in: TaskCreate, db: Session = Depends(get_db)):
-    logger.info(f"Получен запрос на создание задачи: {task_in}")
-    result = create_task(db, task_in, task_in.user_id)
-    logger.info(f"Задача создана: {result}")
-    return result
-
+# @router.post("/new_task")
+# def new_task(task_in: TaskCreate, db: Session = Depends(get_db)):
+#     logger.info(f"Получен запрос на создание задачи: {task_in}")
+#     result = create_task(db, task_in, task_in.user_id)
+#     logger.info(f"Задача создана: {result}")
+#     return result
+@router.post("/create_task")
+def create_task_endpoint(task: TaskCreate, db: Session = Depends(get_db)):
+    created = create_task(db, task)
+    return created
 
 @router.get("/tasks_by_user/{user_id}")
 def get_user_tasks(user_id: int, db: Session = Depends(get_db)):

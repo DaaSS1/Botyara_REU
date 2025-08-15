@@ -67,14 +67,20 @@ def get_active_task(db: Session, deadline: datetime):
     .filter(Tasks.status == 'active').all()
     return [TaskResponse.model_validate(t) for t in tasks]
 
-def create_task(db: Session, task_in: TaskCreate, user_id: int):
-    task_data = task_in.model_dump(exclude_unset=True)
-    # user_id уже есть в task_data, не нужно дублировать
-    db_task = Tasks(**task_data)
+def create_task(db: Session, task: TaskCreate):
+    db_task = Tasks(
+        user_id=task.user_id,
+        problem_text=task.problem_text,
+        subject=task.subject,
+        solver_id=task.solver_id,
+        status=task.status,
+        deadline=task.deadline,
+        file_id=task.file_id,  # <— добавили
+    )
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    return TaskResponse.model_validate(db_task)
+    return db_task
 
 def delete_task(db: Session, task_id: int):
     db_task = db.query(Tasks).filter(Tasks.task_id == task_id).first()

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-
+from typing import Optional
 
 
 class TaskBase(BaseModel):
@@ -8,11 +8,13 @@ class TaskBase(BaseModel):
     subject: str
     status: str
     deadline: datetime | None = None
+    file_id: str | None = None
 
 
 class TaskCreate(TaskBase):
     user_id: int
     solver_id: int | None = None
+
 
 
 class TaskResponse(TaskBase):
