@@ -97,6 +97,11 @@ async def get_user_by_username_api(tg_name: str):
         return resp.json()
 
 # ---------- SOLUTIONS ----------
-async def get_match(task_id: int):
+# async def get_match(task_id: int):
+#     async with AsyncClient(base_url=API_URL) as client:
+#         logger.info()
+async def create_solution_api(task_id: int, payload: dict):
     async with AsyncClient(base_url=API_URL) as client:
-        logger.info()
+        r = await client.post(f"/tasks/{task_id}/solutions", json=payload)
+        r.raise_for_status()
+        return r.json()

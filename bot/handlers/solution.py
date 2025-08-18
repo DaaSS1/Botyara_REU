@@ -1,13 +1,21 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message, FSInputFile
+from aiogram.types import CallbackQuery, Message
 from aiogram.filters import Command
 import logging
-from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api
-from bot.keyboards import show_tasks, create_task_list_keyboard, create_task_choice_keyboard
-from pathlib import Path
+
+from app.core.crud import get_task
+from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api, create_solution_api, \
+    get_task_api
+from bot.keyboards import create_task_list_keyboard, create_task_choice_keyboard
+import re
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State,StatesGroup
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+class SendSolutionStates(StatesGroup):
+    waiting_for_photo = State()
 
 @router.message(Command(commands=["check_tasks"]))
 async def check_tasks(message: Message):
@@ -102,17 +110,6 @@ async def view_task_details(callback: CallbackQuery):
             await callback.answer("❌ Задача не найдена или уже назначена")
             return
 
-        # if task.get("file_id"):
-        #     try:
-        #         with open(task["file_id"]) :
-        #             if task["file_id"].startswith("AgAC"):
-        #                 await callback.message.answer_photo(task["file_id"], caption="Прикрепленный файл")
-        #             else:
-        #                 await callback.message.answer_document(task["file_id"], caption="Прикрепленный файл")
-        #     except FileNotFoundError:
-        #         await callback.answer("Файл не найден на сервере")
-
-        # Формируем сообщение с деталями задачи
         task_text = f"""
 📝 **Детали задачи #{task_id}**
 
@@ -185,3 +182,62 @@ async def reject_task(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка при отклонении задачи {task_id} пользователем {user_id}: {e}")
         await callback.answer("❌ Ошибка при отклонении задачи")
+
+@router.message(F.text.regexp(r"^/send_solution_(\d+)$"))
+async def start_solution(message: Message,state: FSMContext):
+    m = re.match(r"^/send_solution_(\d+)$", message.text)
+    task_id = int(m.group(1))
+    await state.update_data(current_task_id = task_id)
+    await state.set_state(SendSolutionStates.waiting_for_photo)
+    await message.answer(f"Окей, жду фото решения для задачи #{task_id}")
+
+@router.message(SendSolutionStates.waiting_for_photo, F.photo)
+async def send_photo_solution(message: Message, state: FSMContext):
+    data = await state.get_data()
+    task_id = data.get("current_task_id")
+    if not task_id:
+        await message.reply("Сначала укажи задачу командой: /send_solution_<task_id>")
+        return
+
+    solver_id = message.from_user.id
+    file = message.photo[-1]
+    file_id = file.file_id
+    caption = message.caption or ""
+
+    solution_data = {
+        "solver_id": solver_id,
+        "file_id": file_id,
+        "caption": caption
+    }
+
+    try:
+        resp = await create_solution_api(task_id, solution_data)
+    except Exception:
+        logger.exception("Create solution failed")
+        await message.reply("Ошибка при сохранении решения. Пробуй позже сука")
+        return
+
+    task_user_id = resp.get("task_user_id")
+    if not task_user_id:
+        try:
+            task = await get_task_api(task_id)
+            task_user_id = task.get("user_id")
+        except Exception as e:
+            logger.exception("get_task_api failed")
+            await message.reply("Решение сохранено, но не удалось уведомить заказчика.")
+            return
+
+    try:
+        caption_for_owner = (
+            f"📤 Новое решение по Вашей задаче"
+        )
+        await message.bot.send_photo(chat_id = task_user_id,
+                                     caption = caption_for_owner,
+                                     photo = file_id)
+    except Exception:
+        logger.exception("send_photo to owner failed")
+        await message.reply("Решение сохранено, но фото не доставлено заказчику.")
+        return
+    await message.reply(f"✅ Решение по задаче #{task_id} отправлено заказчику.")
+
+    await state.clear()

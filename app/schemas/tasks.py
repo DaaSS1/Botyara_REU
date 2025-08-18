@@ -40,7 +40,9 @@ class TaskStatusUpdate(BaseModel):
 #         from_attributes = True
 
 class SolutionBase(BaseModel):
-    answer_text: str
+    answer_text: str | None = None
+    file_id: str | None = None
+    caption: str | None = None
 
 
 class SolutionCreate(SolutionBase):

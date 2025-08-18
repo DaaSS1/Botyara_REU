@@ -5,3 +5,4 @@ app = FastAPI()
 
 app.include_router(users.app)
 app.include_router(tasks.router)
+app.include_router(solutions.router)

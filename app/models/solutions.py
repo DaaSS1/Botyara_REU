@@ -5,6 +5,8 @@ class Solutions(Base):
     __tablename__ = "solutions"
     solution_id = Column(Integer,primary_key=True)
     solver_id = Column(Integer, ForeignKey('tasks.solver_id'))
-    answer_text = Column(TEXT)
+    task_id = Column(Integer, ForeignKey("tasks.task_id"))
+    file_id = Column(String, nullable=False)  # Telegram file_id (строка)
+    caption = Column(String, nullable=True)  # подпись/текст решения (опц.
     is_approved = Column(Integer)
     submitted_at = Column(DATETIME)
