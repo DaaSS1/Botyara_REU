@@ -10,6 +10,7 @@ import logging
 router = Router()
 logger = logging.getLogger(__name__)
 
+
 # Новый порядок: метод → предмет → текст → файлы
 class TaskStates(StatesGroup):
     waiting_for_method = State()
@@ -66,13 +67,18 @@ async def handle_task_text(message: Message, state: FSMContext):
     await state.set_state(TaskStates.waiting_for_files)
 
 
-# --- Фото/файлы задачи (мультизагрузка) ---
+# --- Фото/файлы задачи (мультизагрузка + альбомы) ---
 @router.message(TaskStates.waiting_for_files)
-async def handle_task_files(message: Message, state: FSMContext):
+async def handle_task_files(
+    message: Message,
+    state: FSMContext,
+    album: list[Message] | None = None,  # ← сюда AlbumMiddleware передаст альбом, если он есть
+):
     data = await state.get_data()
     user_id = message.from_user.id
+    file_ids = data.get("file_ids", [])
 
-    # Если юзер закончил прикреплять
+    # --- Если юзер закончил ---
     if message.text and message.text.lower() == "готово":
         problem_text = data["problem_text"]
         solve_method = data["solve_method"]
@@ -92,7 +98,7 @@ async def handle_task_files(message: Message, state: FSMContext):
                 "status": status,
                 "deadline": None,
                 "solver_id": None,
-                "images": file_ids  # <-- список файлов
+                "images": file_ids,  # <-- список файлов
             }
 
             result = await create_task_api(task_data)
@@ -101,7 +107,7 @@ async def handle_task_files(message: Message, state: FSMContext):
             for chat_id in [1105917879, 7365012449]:
                 await message.bot.send_message(
                     chat_id=chat_id,
-                    text="📋 Новая задача создана. Ознакомьтесь с условиями и возьмите в работу."
+                    text="📋 Новая задача создана. Ознакомьтесь с условиями и возьмите в работу.",
                 )
 
             logger.info(f"Задача создана на сервере: {result}")
@@ -113,14 +119,22 @@ async def handle_task_files(message: Message, state: FSMContext):
         logger.info(f"Состояние пользователя {user_id} очищено")
         return
 
-    # Если пришёл файл/фото — добавляем в список
-    file_ids = data.get("file_ids", [])
-    if message.document:
-        file_ids.append(message.document.file_id)
-    elif message.photo:
-        file_ids.append(message.photo[-1].file_id)
+    # --- Добавление файлов ---
+    if album:  # если это альбом (несколько фото/доков в одном сообщении)
+        for msg in album:
+            if msg.photo:
+                file_ids.append(msg.photo[-1].file_id)
+            elif msg.document:
+                file_ids.append(msg.document.file_id)
+
+        await message.answer("✅ Фото добавлены. Пришли ещё или напиши 'готово'")
+    else:  # одиночный файл
+        if message.document:
+            file_ids.append(message.document.file_id)
+        elif message.photo:
+            file_ids.append(message.photo[-1].file_id)
+
+        await message.answer("✅ Файл добавлен. Пришли ещё или напиши 'готово'")
 
     await state.update_data(file_ids=file_ids)
-    await message.answer("✅ Файл добавлен. Пришли ещё или напиши 'готово'")
-
-    logger.info(f"=== FILE: User {user_id} добавил файл. Всего файлов: {len(file_ids)} ===")
+    logger.info(f"=== FILE(S): User {user_id} добавил {len(file_ids)} файлов всего ===")
