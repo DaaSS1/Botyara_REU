@@ -40,14 +40,15 @@ class TaskStatusUpdate(BaseModel):
 #         from_attributes = True
 
 class SolutionBase(BaseModel):
-    answer_text: str | None = None
-    file_id: str | None = None
-    caption: str | None = None
+    answer_text: Optional[str] = None
+    file_ids: Optional[List[str]] = None   # список айдишников фото
+    caption: Optional[str] = None
 
 
-class SolutionCreate(SolutionBase):
+class SolutionCreate(BaseModel):
     solver_id: int
-
+    file_ids: List[str]
+    caption: Optional[str] = None
 
 class SolutionResponse(SolutionBase):
     solution_id: int

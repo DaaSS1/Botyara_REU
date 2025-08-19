@@ -21,7 +21,7 @@ def create_solution(task_id: int, solution: SolutionCreate, db: Session = Depend
     sol = Solutions(
         task_id = task_id,
         solver_id = solution.solver_id,
-        file_id = solution.file_id,
+        file_ids = solution.file_ids,
         caption = solution.caption,
         submitted_at = datetime.utcnow()
     )

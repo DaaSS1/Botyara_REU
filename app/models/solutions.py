@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, CHAR, String, TIMESTAMP, TEXT, ForeignKey, DATETIME
+from sqlalchemy import Column, Integer, CHAR, String, TIMESTAMP, TEXT, ForeignKey, DATETIME, JSON
 from app.core.database import Base
 
 class Solutions(Base):
@@ -6,7 +6,7 @@ class Solutions(Base):
     solution_id = Column(Integer,primary_key=True)
     solver_id = Column(Integer, ForeignKey('tasks.solver_id'))
     task_id = Column(Integer, ForeignKey("tasks.task_id"))
-    file_id = Column(String, nullable=False)  # Telegram file_id (строка)
+    file_ids = Column(JSON, nullable=True)  # Telegram file_id (строка)
     caption = Column(String, nullable=True)  # подпись/текст решения (опц.
     is_approved = Column(Integer)
     submitted_at = Column(DATETIME)

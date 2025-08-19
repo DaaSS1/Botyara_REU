@@ -124,7 +124,6 @@ async def view_task_details(callback: CallbackQuery):
         kb = await create_task_choice_keyboard(task_id)
 
         images = task.get("images") or []
-        images = task.get("images") or []
         if images:
             # если фото есть → шлём альбом
             media = []
@@ -219,13 +218,12 @@ async def send_photo_solution(message: Message, state: FSMContext):
         return
 
     solver_id = message.from_user.id
-    file = message.photo[-1]
-    file_id = file.file_id
+    file_ids = [p.file_id for p in message.photo]
     caption = message.caption or ""
 
     solution_data = {
         "solver_id": solver_id,
-        "file_id": file_id,
+        "file_ids": file_ids,
         "caption": caption
     }
 
@@ -241,22 +239,32 @@ async def send_photo_solution(message: Message, state: FSMContext):
         try:
             task = await get_task_api(task_id)
             task_user_id = task.get("user_id")
-        except Exception as e:
+        except Exception:
             logger.exception("get_task_api failed")
             await message.reply("Решение сохранено, но не удалось уведомить заказчика.")
             return
 
     try:
-        caption_for_owner = (
-            f"📤 Новое решение по Вашей задаче"
-        )
-        await message.bot.send_photo(chat_id = task_user_id,
-                                     caption = caption_for_owner,
-                                     photo = file_id)
+        if len(file_ids) > 1:
+            # несколько фото → альбом
+            media = []
+            for i, f_id in enumerate(file_ids):
+                if i == 0:
+                    media.append(InputMediaPhoto(media=f_id, caption="📤 Новое решение по Вашей задаче"))
+                else:
+                    media.append(InputMediaPhoto(media=f_id))
+            await message.bot.send_media_group(chat_id=task_user_id, media=media)
+        else:
+            # одно фото
+            await message.bot.send_photo(
+                chat_id=task_user_id,
+                photo=file_ids[0],
+                caption="📤 Новое решение по Вашей задаче"
+            )
     except Exception:
         logger.exception("send_photo to owner failed")
         await message.reply("Решение сохранено, но фото не доставлено заказчику.")
         return
-    await message.reply(f"✅ Решение по задаче #{task_id} отправлено заказчику.")
 
+    await message.reply(f"✅ Решение по задаче #{task_id} отправлено заказчику.")
     await state.clear()
