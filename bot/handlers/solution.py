@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InputMediaPhoto
 from aiogram.filters import Command
 import logging
 
@@ -123,20 +123,29 @@ async def view_task_details(callback: CallbackQuery):
 
         kb = await create_task_choice_keyboard(task_id)
 
-        if task.get("file_id"):
-            await callback.message.answer_photo(
-                photo=task["file_id"],
-                caption=task_text,
-                reply_markup=kb
-            )
+        images = task.get("images") or []
+        images = task.get("images") or []
+        if images:
+            # если фото есть → шлём альбом
+            media = []
+            for i, f_id in enumerate(images):
+                if i == 0:
+                    media.append(InputMediaPhoto(media=f_id, caption=task_text))
+                else:
+                    media.append(InputMediaPhoto(media=f_id))
+
+            await callback.message.answer_media_group(media=media)
+            # отдельно кидаем клавиатуру
+            await callback.message.answer("👇 Действия по задаче:", reply_markup=kb)
         else:
             await callback.message.answer(task_text, reply_markup=kb)
+
     except Exception as e:
         logger.error(f"Ошибка при просмотре задачи {task_id} пользователем {user_id}: {e}")
         await callback.answer("❌ Ошибка при загрузке задачи")
 
 @router.callback_query(F.data.startswith("accept_task_"))
-async def accept_task(callback: CallbackQuery):
+async def accept_task(callback: CallbackQuery, state: FSMContext):
     """Исполнитель принимает задачу"""
     user_id = callback.from_user.id
     task_id = int(callback.data.split("_")[2])
@@ -144,15 +153,25 @@ async def accept_task(callback: CallbackQuery):
     try:
         # Назначаем задачу исполнителю
         result = await assign_task_to_solver_api(task_id, user_id)
-
-        await callback.message.edit_text(
+        new_text = (
             f"✅ **Задача #{task_id} успешно назначена вам!**\n\n"
             f"📝 Текст: {result['problem_text'][:100]}...\n"
             f"📚 Предмет: {result['subject']}\n\n"
             f"Приступайте к решению! 🚀"
         )
 
+        if callback.message.photo:
+            await callback.message.edit_caption(new_text)
+        else:
+            await callback.message.edit_text(new_text)
+
         logger.info(f"Пользователь {user_id} принял задачу {task_id}")
+
+        task = await get_task_api(task_id)
+        task_user_id = task.get("user_id")
+        await callback.bot.send_message(chat_id=task_user_id, text="📢 Ваша задача принята исполнителем! В скором времени он пришлет решение. "
+                 "Пожалуйста, произведите оплату 💳")
+
 
     except Exception as e:
         logger.error(f"Ошибка при назначении задачи {task_id} пользователю {user_id}: {e}")

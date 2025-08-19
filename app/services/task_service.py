@@ -1,26 +1,44 @@
 from aiogram.types import Message
-from datetime import datetime
-from pathlib import Path
+from app.core.database import async_session_maker
+from app.models.task import Tasks
+from sqlalchemy import update, select
+import logging
 
-async def save_user_image(message: Message):
-    user_id = message.from_user.id
+logger = logging.getLogger(__name__)
 
-    # 1. Получаем файл
+async def save_user_image(message: Message, task_id: int):
+    """Сохраняет фото от пользователя в JSON-поле images у задачи."""
+
     if not message.photo:
-        return await message.answer("Пришли фото.")
-    file = message.photo[-1]  # самое большое изображение
-    #tg_file = await message.bot.get_file(file.file_id)
-    file_id = file.file_id
-    # # 2. Создаём папку пользователя
-    # user_dir = Path(f"uploads/{user_id}")
-    # user_dir.mkdir(parents=True, exist_ok=True)
-    #
-    # # 3. Формируем имя файла
-    # timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # file_name = f"{timestamp}.jpg"
-    # file_path = user_dir / file_name
-    #
-    # # 4. Сохраняем файл
-    # await message.bot.download_file(tg_file.file_path, destination=file_path)
+        await message.answer("❌ Пришли хотя бы одно фото.")
+        return None
 
-    return file_id
+    # Берем самое большое фото из сообщения
+    file_id = message.photo[-1].file_id
+
+    try:
+        async with async_session_maker() as session:
+            # Сначала получаем уже сохраненные фото
+            result = await session.execute(
+                select(Tasks.images).where(Tasks.task_id == task_id)
+            )
+            current_images = result.scalar_one_or_none() or []
+
+            # Добавляем новое фото
+            updated_images = current_images + [file_id]
+
+            # Обновляем запись
+            stmt = (
+                update(Tasks)
+                .where(Tasks.task_id == task_id)
+                .values(images=updated_images)
+            )
+            await session.execute(stmt)
+            await session.commit()
+
+        logger.info(f"✅ Сохранили фото для задачи {task_id}: {file_id}")
+        return updated_images
+
+    except Exception as e:
+        logger.error(f"Ошибка сохранения фото: {e}")
+        return None

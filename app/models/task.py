@@ -1,4 +1,4 @@
-from sqlalchemy import Column,Integer,CHAR, String, TIMESTAMP, TEXT, ForeignKey
+from sqlalchemy import Column,Integer,CHAR, String, TIMESTAMP, TEXT, JSON
 from app.core.database import Base
 
 class Tasks(Base):
@@ -10,4 +10,4 @@ class Tasks(Base):
     solver_id = Column(Integer, nullable=True)
     status = Column(String)
     deadline = Column(TIMESTAMP)
-    file_id = Column(String, nullable=True)
+    images = Column(JSON, nullable=True )

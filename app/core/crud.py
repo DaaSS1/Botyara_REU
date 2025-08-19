@@ -75,7 +75,7 @@ def create_task(db: Session, task: TaskCreate):
         solver_id=task.solver_id,
         status=task.status,
         deadline=task.deadline,
-        file_id=task.file_id,  # <— добавили
+        images=task.images,  # <— добавили
     )
     db.add(db_task)
     db.commit()

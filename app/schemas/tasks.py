@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class TaskBase(BaseModel):
@@ -8,13 +8,12 @@ class TaskBase(BaseModel):
     subject: str
     status: str
     deadline: datetime | None = None
-    file_id: str | None = None
+    images: Optional[List[str]] = None   # ✅ вместо file_id
 
 
 class TaskCreate(TaskBase):
     user_id: int
-    solver_id: int | None = None
-
+    solver_id: Optional[int] = None
 
 
 class TaskResponse(TaskBase):
@@ -24,6 +23,7 @@ class TaskResponse(TaskBase):
 
     class Config:
         from_attributes = True
+
 
 class TaskStatusUpdate(BaseModel):
     status: str
