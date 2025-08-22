@@ -9,13 +9,14 @@ logger = logging.getLogger(__name__)
 async def save_user_image(message: Message, task_id: int):
     """Сохраняет фото от пользователя в JSON-поле images у задачи."""
 
-    if not message.photo:
-        await message.answer("❌ Пришли хотя бы одно фото.")
+    file_id = None
+    if message.photo:
+        file_id = message.photo[-1].file_id
+    elif message.document:
+        file_id = message.document.file_id
+    else:
+        await message.answer("❌ Пришлите фото или файл (document).")
         return None
-
-    # Берем самое большое фото из сообщения
-    file_id = message.photo[-1].file_id
-
     try:
         async with async_session_maker() as session:
             # Сначала получаем уже сохраненные фото

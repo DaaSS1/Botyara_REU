@@ -76,7 +76,7 @@ async def handle_task_files(
 ):
     data = await state.get_data()
     user_id = message.from_user.id
-    file_ids = data.get("file_ids", [])
+    file_ids: list[str] = data.get("file_ids", [])
 
     # --- Если юзер закончил ---
     if message.text and message.text.lower() == "готово":
@@ -98,7 +98,7 @@ async def handle_task_files(
                 "status": status,
                 "deadline": None,
                 "solver_id": None,
-                "images": file_ids,  # <-- список файлов
+                "images": file_ids,  # <-- тут попадёт весь список
             }
 
             result = await create_task_api(task_data)
@@ -120,21 +120,24 @@ async def handle_task_files(
         return
 
     # --- Добавление файлов ---
-    if album:  # если это альбом (несколько фото/доков в одном сообщении)
+    new_files = []
+    if album:  # если это альбом
         for msg in album:
             if msg.photo:
-                file_ids.append(msg.photo[-1].file_id)
+                new_files.append(msg.photo[-1].file_id)
             elif msg.document:
-                file_ids.append(msg.document.file_id)
+                new_files.append(msg.document.file_id)
+        await message.answer(f"✅ Добавлено {len(new_files)} фото. Пришли ещё или напиши 'готово'")
+    elif message.photo:  # одиночное фото
+        new_files.append(message.photo[-1].file_id)
+        await message.answer("✅ Фото добавлено. Пришли ещё или напиши 'готово'")
 
-        await message.answer("✅ Фото добавлены. Пришли ещё или напиши 'готово'")
-    else:  # одиночный файл
-        if message.document:
-            file_ids.append(message.document.file_id)
-        elif message.photo:
-            file_ids.append(message.photo[-1].file_id)
-
+    elif message.document:  # одиночный документ
+        new_files.append(message.document.file_id)
         await message.answer("✅ Файл добавлен. Пришли ещё или напиши 'готово'")
 
+    # дополняем существующий список
+    file_ids.extend(new_files)
     await state.update_data(file_ids=file_ids)
-    logger.info(f"=== FILE(S): User {user_id} добавил {len(file_ids)} файлов всего ===")
+
+    logger.info(f"=== FILE(S): User {user_id} добавил {len(new_files)} файлов, всего: {len(file_ids)} ===")

@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, InputMediaPhoto
 from aiogram.filters import Command
 import logging
-
 from app.core.crud import get_task
 from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api, create_solution_api, \
     get_task_api
@@ -10,12 +9,13 @@ from bot.keyboards import create_task_list_keyboard, create_task_choice_keyboard
 import re
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State,StatesGroup
-
+from pathlib import Path
 router = Router()
 logger = logging.getLogger(__name__)
 
 class SendSolutionStates(StatesGroup):
     waiting_for_photo = State()
+
 
 @router.message(Command(commands=["check_tasks"]))
 async def check_tasks(message: Message):
@@ -111,29 +111,55 @@ async def view_task_details(callback: CallbackQuery):
             return
 
         task_text = f"""
-📝 **Детали задачи #{task_id}**
+📝 Детали задачи #{task_id}
 
-📚 **Предмет:** {task['subject']}
-📄 **Текст задачи:** {task['problem_text']}
-⏰ **Дедлайн:** {task['deadline'] or 'Не указан'}
-📊 **Статус:** {task['status']}
+📚 Предмет: {task['subject']}
+📄 Текст задачи: {task['problem_text']}
+⏰ Дедлайн: {task['deadline'] or 'Не указан'}
+📊 Статус: {task['status']}
 
 Хотите взять эту задачу?
         """.strip()
 
         kb = await create_task_choice_keyboard(task_id)
 
-        images = task.get("images") or []
+        raw_files = task.get("images")
+        photos: list[str] = []
+        documents: list[str] = []
+
+        for f_id in raw_files:
+            try:
+                tg_file = callback.bot.get_file(f_id)
+                file_path = (tg_file.file_path or "").lower()
+                suffix = Path(file_path).suffix
+                if suffix in (".jpg", ".jpeg", ".png", ".webp"):
+                    photos.append(f_id)
+                else:
+                    documents.append(f_id)
+            except Exception:
+                documents.append(f_id)
+
+        images = photos
         if images:
-            # если фото есть → шлём альбом
             media = []
             for i, f_id in enumerate(images):
                 if i == 0:
-                    media.append(InputMediaPhoto(media=f_id, caption=task_text))
+                    media.append(InputMediaPhoto(media = f_id, caption=task_text))
                 else:
                     media.append(InputMediaPhoto(media=f_id))
+            await callback.message.answer_media_group(media = media)
 
-            await callback.message.answer_media_group(media=media)
+        if documents:
+            for i, f_id in enumerate(documents):
+                try:
+                    if i == 0 and not photos:
+                        await callback.message.answer_document(document = f_id, caption = task_text)
+                    else:
+                        await callback.message.answer_document(document=f_id)
+                except Exception:
+                    logger.exception(f"Не удалось отправить документ {f_id} для задачи {task_id}")
+                    await callback.message.answer(f"Не удалось отправить вложение (file_id={f_id})")
+
             # отдельно кидаем клавиатуру
             await callback.message.answer("👇 Действия по задаче:", reply_markup=kb)
         else:
@@ -209,31 +235,57 @@ async def start_solution(message: Message,state: FSMContext):
     await state.set_state(SendSolutionStates.waiting_for_photo)
     await message.answer(f"Окей, жду фото решения для задачи #{task_id}")
 
-@router.message(SendSolutionStates.waiting_for_photo, F.photo)
-async def send_photo_solution(message: Message, state: FSMContext):
+@router.message(SendSolutionStates.waiting_for_photo, F.content_type.in_(["photo", "document"]))
+async def send_file_solution(
+    message: Message,
+    state: FSMContext,
+    album: list[Message] | None = None   # <-- сюда миддварь AlbumMiddleware положит список
+):
     data = await state.get_data()
     task_id = data.get("current_task_id")
+
     if not task_id:
         await message.reply("Сначала укажи задачу командой: /send_solution_<task_id>")
         return
 
     solver_id = message.from_user.id
-    file_ids = [p.file_id for p in message.photo]
-    caption = message.caption or ""
+    file_ids: list[str] = []
+    photos: list[str] = []
+    docs: list[str] = []
+    caption = ""
+    # если пришёл альбом — собираем все фото
+    if album:
+        for msg in album:
+            if msg.photo:
+                file_ids.append(msg.photo[-1].file_id)
+                photos.append(msg.photo[-1].file_id)
+            elif msg.document:
+                file_ids.append(msg.document.file_id)
+                docs.append(msg.photo[-1].file_id)
+        caption = album[0].caption or ""
+    else:
+        if message.photo:
+            file_ids.append(message.photo[-1].file_id)
+            photos.append(message.photo[-1].file_id)
+        elif message.document:
+            file_ids.append(message.document.file_id)
+            docs.append(message.document.file_id)
+        caption = message.caption or ""
 
     solution_data = {
         "solver_id": solver_id,
         "file_ids": file_ids,
-        "caption": caption
+        "caption": caption,
     }
 
     try:
         resp = await create_solution_api(task_id, solution_data)
     except Exception:
         logger.exception("Create solution failed")
-        await message.reply("Ошибка при сохранении решения. Пробуй позже сука")
+        await message.reply("Ошибка при сохранении решения. Попробуй позже.")
         return
 
+    # ищем заказчика (кому пересылать решение)
     task_user_id = resp.get("task_user_id")
     if not task_user_id:
         try:
@@ -244,25 +296,55 @@ async def send_photo_solution(message: Message, state: FSMContext):
             await message.reply("Решение сохранено, но не удалось уведомить заказчика.")
             return
 
+    owner_caption = "📤 Новое решение по Вашей задаче"
+
+    # отправляем заказчику фото или альбом
+    sent_any = False
     try:
-        if len(file_ids) > 1:
-            # несколько фото → альбом
-            media = []
-            for i, f_id in enumerate(file_ids):
-                if i == 0:
-                    media.append(InputMediaPhoto(media=f_id, caption="📤 Новое решение по Вашей задаче"))
+        if photos:
+            piece_size = 10
+            for piece_index in range(0, len(photos), piece_size):
+                piece = photos[piece_index: piece_index + piece_size]
+                if len(piece) == 1:
+                    try:
+                        await message.bot.send_photo(
+                            chat_id = task_user_id,
+                            photo = piece[0],
+                            caption = owner_caption if not sent_any else None
+                        )
+                        sent_any = True
+                    except Exception:
+                        await message.bot.send_document(
+                            chat_id = task_user_id,
+                            document = piece[0],
+                            caption= owner_caption if not sent_any else None
+                        )
+                        sent_any = True
                 else:
-                    media.append(InputMediaPhoto(media=f_id))
-            await message.bot.send_media_group(chat_id=task_user_id, media=media)
-        else:
-            # одно фото
-            await message.bot.send_photo(
-                chat_id=task_user_id,
-                photo=file_ids[0],
-                caption="📤 Новое решение по Вашей задаче"
-            )
+                    media = []
+                    for i, f_id in enumerate(piece):
+                        if i == 0:
+                            media.append(InputMediaPhoto(media = f_id, caption = owner_caption))
+                        else:
+                            media.append(InputMediaPhoto(media = f_id))
+                    await message.bot.send_media_group(chat_id = task_user_id, media = media)
+                    sent_any = True
     except Exception:
-        logger.exception("send_photo to owner failed")
+        logger.exception("Ошибка при пересылке фото заказчику")
+
+    try:
+        if docs:
+            for i, f_id in enumerate(docs):
+                try:
+                    cap = owner_caption if (not sent_any and i == 0) else None
+                    await message.bot.send_document(chat_id=task_user_id, document=f_id, caption=cap)
+                    sent_any = True
+
+                except Exception:
+                    logger.exception(f"Failed to forward document {f_id} to owner {task_user_id}")
+    except Exception:
+        logger.exception("Ошибка при пересылке документов заказчику")
+    if not sent_any:
         await message.reply("Решение сохранено, но фото не доставлено заказчику.")
         return
 

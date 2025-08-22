@@ -10,6 +10,7 @@ async def main():
     dp = Dispatcher(storage = storage)
 
     dp.message.middleware(AlbumMiddleware())
+
     # подключение роутера
     dp.include_router(start.router)
     dp.include_router(tasks.router)
