@@ -98,7 +98,7 @@ async def handle_task_files(
                 "status": status,
                 "deadline": None,
                 "solver_id": None,
-                "images": file_ids,  # <-- тут попадёт весь список
+                "images": [f["file_id"] if isinstance(f, dict) else f for f in file_ids]
             }
 
             result = await create_task_api(task_data)
@@ -121,19 +121,18 @@ async def handle_task_files(
 
     # --- Добавление файлов ---
     new_files = []
-    if album:  # если это альбом
+    if album:
         for msg in album:
             if msg.photo:
-                new_files.append(msg.photo[-1].file_id)
+                new_files.append({"file_id": msg.photo[-1].file_id, "type": "photo"})
             elif msg.document:
-                new_files.append(msg.document.file_id)
-        await message.answer(f"✅ Добавлено {len(new_files)} фото. Пришли ещё или напиши 'готово'")
-    elif message.photo:  # одиночное фото
-        new_files.append(message.photo[-1].file_id)
+                new_files.append({"file_id": msg.document.file_id, "type": "document"})
+        await message.answer(f"✅ Добавлено {len(new_files)} файлов. Пришли ещё или напиши 'готово'")
+    elif message.photo:
+        new_files.append({"file_id": message.photo[-1].file_id, "type": "photo"})
         await message.answer("✅ Фото добавлено. Пришли ещё или напиши 'готово'")
-
-    elif message.document:  # одиночный документ
-        new_files.append(message.document.file_id)
+    elif message.document:
+        new_files.append({"file_id": message.document.file_id, "type": "document"})
         await message.answer("✅ Файл добавлен. Пришли ещё или напиши 'готово'")
 
     # дополняем существующий список

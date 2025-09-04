@@ -1,5 +1,6 @@
 import logging
 from httpx import AsyncClient
+import httpx
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -7,11 +8,35 @@ logger = logging.getLogger(__name__)
 API_URL = "http://localhost:8000"  # Адрес сервера FastAPI
 
 # ---------- TASKS ----------
+async def _handle_response(resp: httpx.Response, context: str = ""):
+    """
+    Логирует тело ответа и поднимает исключение, если статус >= 400.
+    Возвращает распарсенный JSON при успехе.
+    """
+    logger.info(f"Response [{resp.status_code}]: {resp.text}")
+    if resp.status_code >= 400:
+        # Попробуем разобрать JSON-детали ошибки, иначе логи текст
+        try:
+            err_json = resp.json()
+            logger.error(f"{context} error {resp.status_code}: {err_json}")
+        except Exception:
+            logger.error(f"{context} error {resp.status_code}: {resp.text}")
+        resp.raise_for_status()
+    try:
+        return resp.json()
+    except Exception:
+        return resp.text
+
+# ---------- TASKS ----------
 async def create_task_api(task_data: dict):
-        async with AsyncClient(base_url=API_URL) as client:
-            resp = await client.post("/create_task", json = task_data)
-            resp.raise_for_status()
-            return resp.json()
+    async with AsyncClient(base_url=API_URL) as client:
+        try:
+            logger.info(f"POST /create_task -> {task_data}")
+            resp = await client.post("/create_task", json=task_data)
+            return await _handle_response(resp, context="create_task")
+        except httpx.RequestError as e:
+            logger.exception(f"Network error while calling create_task_api: {e}")
+            raise
 
 async def get_task_api(task_id: int):
     async with AsyncClient(base_url=API_URL) as client:

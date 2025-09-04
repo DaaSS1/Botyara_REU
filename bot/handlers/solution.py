@@ -123,21 +123,29 @@ async def view_task_details(callback: CallbackQuery):
 
         kb = await create_task_choice_keyboard(task_id)
 
-        raw_files = task.get("images")
+        raw_files = task.get("images") or []
         photos: list[str] = []
         documents: list[str] = []
 
-        for f_id in raw_files:
+        for item in raw_files:
+            if isinstance(item, dict):
+                f_id = item.get("file_id")
+                f_type = item.get("type")
+                if f_id:
+                    if f_type == "photo":
+                        photos.append(f_id)
+                    else:
+                        documents.append(f_id)
             try:
-                tg_file = callback.bot.get_file(f_id)
+                tg_file = await callback.bot.get_file(item)
                 file_path = (tg_file.file_path or "").lower()
                 suffix = Path(file_path).suffix
                 if suffix in (".jpg", ".jpeg", ".png", ".webp"):
-                    photos.append(f_id)
+                    photos.append(item)
                 else:
-                    documents.append(f_id)
+                    documents.append(item)
             except Exception:
-                documents.append(f_id)
+                documents.append(item)
 
         images = photos
         if images:
@@ -249,33 +257,25 @@ async def send_file_solution(
         return
 
     solver_id = message.from_user.id
-    file_ids: list[str] = []
-    photos: list[str] = []
-    docs: list[str] = []
-    caption = ""
+    file_ids: list = []
+    caption =message.caption or ""
     # если пришёл альбом — собираем все фото
     if album:
         for msg in album:
             if msg.photo:
-                file_ids.append(msg.photo[-1].file_id)
-                photos.append(msg.photo[-1].file_id)
+                file_ids.append({"file_id": msg.photo[-1].file_id, "type":"photo"})
             elif msg.document:
-                file_ids.append(msg.document.file_id)
-                docs.append(msg.photo[-1].file_id)
-        caption = album[0].caption or ""
+                file_ids.append({"file_id":msg.document.file_id, "type": "document"})
     else:
         if message.photo:
-            file_ids.append(message.photo[-1].file_id)
-            photos.append(message.photo[-1].file_id)
+            file_ids.append({"file_id": message.photo[-1].file_id, "type": "photo"})
         elif message.document:
-            file_ids.append(message.document.file_id)
-            docs.append(message.document.file_id)
-        caption = message.caption or ""
+            file_ids.append({"file_id": message.document.file_id, "type": "document"})
 
     solution_data = {
         "solver_id": solver_id,
-        "file_ids": file_ids,
-        "caption": caption,
+        "file_ids": [i["file_id"] if isinstance(i, dict) else i for i in file_ids],
+        "caption": caption
     }
 
     try:
@@ -300,6 +300,30 @@ async def send_file_solution(
 
     # отправляем заказчику фото или альбом
     sent_any = False
+    photos: list[str] = []
+    docs: list[str] = []
+    for item in file_ids:
+        # Новый формат: dict
+        if isinstance(item, dict):
+            fid = item.get("file_id")
+            ftype = item.get("type")
+            if ftype == "photo":
+                photos.append(fid)
+            else:
+                docs.append(fid)
+        else:
+            # Старый формат: строка file_id -> попробуем узнать по get_file
+            try:
+                tg_file = await message.bot.get_file(item)
+                file_path = (tg_file.file_path or "").lower()
+                if file_path.endswith((".jpg", ".jpeg", ".png", ".webp")):
+                    photos.append(item)
+                else:
+                    docs.append(item)
+            except Exception:
+                docs.append(item)
+
+        # отправляем фото (пакетами по 10)
     try:
         if photos:
             piece_size = 10
@@ -308,26 +332,30 @@ async def send_file_solution(
                 if len(piece) == 1:
                     try:
                         await message.bot.send_photo(
-                            chat_id = task_user_id,
-                            photo = piece[0],
-                            caption = owner_caption if not sent_any else None
+                            chat_id=task_user_id,
+                            photo=piece[0],
+                            caption=owner_caption if not sent_any else None
                         )
                         sent_any = True
                     except Exception:
-                        await message.bot.send_document(
-                            chat_id = task_user_id,
-                            document = piece[0],
-                            caption= owner_caption if not sent_any else None
-                        )
-                        sent_any = True
+                        # fallback: если send_photo упал — попытаться как документ
+                        try:
+                            await message.bot.send_document(
+                                chat_id=task_user_id,
+                                document=piece[0],
+                                caption=owner_caption if not sent_any else None
+                            )
+                            sent_any = True
+                        except Exception:
+                            logger.exception(f"Failed to forward photo {piece[0]} as document")
                 else:
                     media = []
                     for i, f_id in enumerate(piece):
                         if i == 0:
-                            media.append(InputMediaPhoto(media = f_id, caption = owner_caption))
+                            media.append(InputMediaPhoto(media=f_id, caption=owner_caption if not sent_any else None))
                         else:
-                            media.append(InputMediaPhoto(media = f_id))
-                    await message.bot.send_media_group(chat_id = task_user_id, media = media)
+                            media.append(InputMediaPhoto(media=f_id))
+                    await message.bot.send_media_group(chat_id=task_user_id, media=media)
                     sent_any = True
     except Exception:
         logger.exception("Ошибка при пересылке фото заказчику")
