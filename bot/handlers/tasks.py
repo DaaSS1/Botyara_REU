@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-
+from app.core.config import ADMIN_IDS
 from bot.api_client import create_task_api, get_user_api
 from bot.keyboards import set_subject, set_solve_method
 import logging
@@ -104,11 +104,26 @@ async def handle_task_files(
             result = await create_task_api(task_data)
             await message.answer("✅ Задача успешно создана!")
 
-            for chat_id in [1105917879, 7365012449]:
-                await message.bot.send_message(
-                    chat_id=chat_id,
-                    text="📋 Новая задача создана. Ознакомьтесь с условиями и возьмите в работу.",
-                )
+            logger.info(f"ADMIN_IDS: {ADMIN_IDS!r} (type={type(ADMIN_IDS)})")
+
+            if not ADMIN_IDS:
+                logger.warning("ADMIN_IDS пустой — никто не будет оповещён.")
+            else:
+                for raw in ADMIN_IDS:
+                    try:
+                        chat_id = int(raw)
+                    except Exception:
+                        logger.exception(f"Невалидный admin id: {raw!r}; пропускаем")
+                        continue
+
+                    try:
+                        await message.bot.send_message(
+                            chat_id=chat_id,
+                            text="📋 Новая задача создана. Ознакомьтесь с условиями и возьмите в работу.",
+                        )
+                        logger.info(f"Уведомление отправлено администратору {chat_id}")
+                    except Exception as e:
+                        logger.exception(f"Не удалось отправить уведомление администратору {chat_id}: {e}")
 
             logger.info(f"Задача создана на сервере: {result}")
         except Exception as e:

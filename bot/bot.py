@@ -3,10 +3,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 import asyncio
 from bot.handlers import start, tasks, solution
 from bot.middlewares import AlbumMiddleware
+from app.core.config import BOT_TOKEN
+from aiogram.client.bot import DefaultBotProperties
+from aiogram.enums.parse_mode import ParseMode
+
 storage = MemoryStorage()
 
 async def main():
-    bot = Bot(token = "8366768334:AAFrRoi2g19PawY3dWl15ZFInGxCrLp_pjk")
+    bot = Bot(token = BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage = storage)
 
     dp.message.middleware(AlbumMiddleware())

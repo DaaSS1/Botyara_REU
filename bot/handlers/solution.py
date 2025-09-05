@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message, InputMediaPhoto
 from aiogram.filters import Command
 import logging
-from app.core.crud import get_task
+from bot.admin_filter import AdminFilter
 from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api, create_solution_api, \
     get_task_api
 from bot.keyboards import create_task_list_keyboard, create_task_choice_keyboard
@@ -17,7 +17,7 @@ class SendSolutionStates(StatesGroup):
     waiting_for_photo = State()
 
 
-@router.message(Command(commands=["check_tasks"]))
+@router.message(Command(commands=["check_tasks"]), AdminFilter())
 async def check_tasks(message: Message):
     """Команда для исполнителей - показать доступные задачи"""
     user_id = message.from_user.id
@@ -28,11 +28,6 @@ async def check_tasks(message: Message):
         if not user:
             await message.answer("❌ Вы не зарегистрированы в системе")
             return
-
-        # TODO: Добавить проверку роли исполнителя
-        # if user.get("role") != "solver":
-        #     await message.answer("❌ Эта команда доступна только исполнителям")
-        #     return
 
         await message.answer("🔍 Ищу доступные задачи...")
 
@@ -235,7 +230,7 @@ async def reject_task(callback: CallbackQuery):
         logger.error(f"Ошибка при отклонении задачи {task_id} пользователем {user_id}: {e}")
         await callback.answer("❌ Ошибка при отклонении задачи")
 
-@router.message(F.text.regexp(r"^/send_solution_(\d+)$"))
+@router.message(F.text.regexp(r"^/send_solution_(\d+)$"), AdminFilter())
 async def start_solution(message: Message,state: FSMContext):
     m = re.match(r"^/send_solution_(\d+)$", message.text)
     task_id = int(m.group(1))

@@ -36,7 +36,7 @@ async def start_command(message: Message):
                 "tg_user_id": user_id,
                 "tg_name": tg_name,
                 "role": "student", #по айди из бд вставлять роль, пример - проект Тимохи
-                "high_school": "Moscow State University", # из инлайн кнопки
+                "high_school": "РЭУ", # из инлайн кнопки
                 "year": 1
             }
             try:

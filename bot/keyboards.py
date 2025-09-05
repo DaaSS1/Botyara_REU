@@ -2,11 +2,10 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeybo
 
 
 async def get_main_menu()-> InlineKeyboardMarkup:
-    create_task = InlineKeyboardButton(text="📋 Положить задачу в тапки", callback_data="create_task")
-    my_tasks = InlineKeyboardButton(text="🛒 Мои тапки", callback_data="my_own_tasks")
+    create_task = InlineKeyboardButton(text="📋 Создать заявку", callback_data="create_task")
     about_us = InlineKeyboardButton(text="ℹ️ О нас", callback_data="about_us")
     links = InlineKeyboardButton(text="Полезные ссылки", callback_data="links")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[create_task], [my_tasks], [about_us], [links]])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[create_task], [about_us], [links]])
     return keyboard
 
 # При нажатии "Положить задачу в тапки":
@@ -24,9 +23,8 @@ async def set_subject() -> InlineKeyboardMarkup:
     return keyboard
 
 async def set_solve_method() -> InlineKeyboardMarkup:
-    ai_solve = InlineKeyboardButton(text="Решить с ИИ", callback_data="ai_solve_usage")
     solver_solve = InlineKeyboardButton(text = "Отдать на решение исполнителю", callback_data="human_solve")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[ai_solve], [solver_solve]])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[solver_solve]])
     return keyboard
 
 async def show_tasks() -> InlineKeyboardMarkup:
