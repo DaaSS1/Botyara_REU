@@ -15,10 +15,13 @@ async def main():
 
     dp.message.middleware(AlbumMiddleware())
 
+    await bot.delete_webhook(drop_pending_updates=True)
+
     # подключение роутера
     dp.include_router(start.router)
     dp.include_router(tasks.router)
     dp.include_router(solution.router)
+
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from httpx import HTTPStatusError
 
-from bot.keyboards import get_main_menu
+from bot.keyboards import get_main_menu, prices
 from bot.api_client import create_user_api, get_user_api, update_user_api
 import logging
 # импорт клавиатуры из keyboards.py
@@ -57,6 +57,8 @@ async def start_command(message: Message):
         await message.answer("Сервис временно недоступен. Попробуйте позже.")
         logger.error(f"Неожиданная ошибка при /start для {user_id}: {e}")
         return
+
+    await message.answer(text = prices)
 
     await message.answer("Салам пополам, тапок",
                          reply_markup=await get_main_menu())

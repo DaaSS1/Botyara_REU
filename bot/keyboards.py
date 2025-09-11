@@ -3,8 +3,8 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeybo
 
 async def get_main_menu()-> InlineKeyboardMarkup:
     create_task = InlineKeyboardButton(text="📋 Создать заявку", callback_data="create_task")
-    about_us = InlineKeyboardButton(text="ℹ️ О нас", callback_data="about_us")
-    links = InlineKeyboardButton(text="Полезные ссылки", callback_data="links")
+    about_us = InlineKeyboardButton(text="ℹ️ О нас", callback_data="about_us", url="https://t.me/REU_Help_Students")
+    links = InlineKeyboardButton(text="Полезные ссылки", callback_data="links", url = "https://t.me/REU_Help_Students")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[create_task], [about_us], [links]])
     return keyboard
 
@@ -18,7 +18,7 @@ async def get_main_menu()-> InlineKeyboardMarkup:
 async def set_subject() -> InlineKeyboardMarkup:
     math_button = InlineKeyboardButton(text="Высшая математика", callback_data='math')
     prog_button = InlineKeyboardButton(text="Программирование", callback_data="prog")
-    inf_sys_button = InlineKeyboardButton(text="ИСиТ", callback_data="inf_sys")
+    inf_sys_button = InlineKeyboardButton(text="Информационные системы", callback_data="inf_sys")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[math_button], [prog_button], [inf_sys_button]])
     return keyboard
 
@@ -58,3 +58,23 @@ async def set_payment_method():
 
 async def payment_by_link(): #юрл-кнопка оплатить
     pass
+
+prices = """🎓 Прайс-лист на учебные работы
+
+Минимальная цена указана «от» и может быть увеличена на коэффициент сложности. Итоговая стоимость зависит от предмета, сроков и сложности задания.
+
+📋 Базовые цены (от):
+• Домашняя контрольная работа — от 499 руб.
+• Контрольная работа — от 999 руб.
+• Зачет — от 1499 руб.
+• Дифференциальный зачет — от 1999 руб.
+• Экзамен — от 1999 руб.
+• Пересдача — от 1999 руб.
+
+⚖️ На итоговую стоимость влияет коэффициент (от 1.1 до 2.0). Он учитывает:
+• Сложность и объем задания
+• Срочность
+• Наличие свободных исполнителей
+• Особые требования (оформление по ГОСТ, чертежи и т.д.)
+
+💬 Чтобы узнать точную стоимость, пришлите нам задание с подробностями! Мы рассчитаем персональную цену."""

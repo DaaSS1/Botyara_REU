@@ -1,5 +1,5 @@
 from app.core.database import engine, Base
-from app.models import task, users, payment, solutions, ai_usage  # Импорты нужны!
+from app.models import task, users, solutions  # Импорты нужны!
 
 def init_models():
     Base.metadata.create_all(bind=engine)

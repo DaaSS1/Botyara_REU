@@ -17,8 +17,12 @@ else:
 
 DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_NAME = os.getenv('DB_NAME')
+POSTGRES_DB = os.getenv('POSTGRES_DB')
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 
-DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
+
+PersonalAcc = os.getenv("PersonalAcc")
+CorrespAcc = os.getenv("CorrespAcc")
+PayeeINN = os.getenv("PayeeINN")

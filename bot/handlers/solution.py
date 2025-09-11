@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message, InputMediaPhoto
+from aiogram.types import CallbackQuery, Message, InputMediaPhoto, BufferedInputFile
 from aiogram.filters import Command
 import logging
 from bot.admin_filter import AdminFilter
@@ -10,12 +10,16 @@ import re
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State,StatesGroup
 from pathlib import Path
+from bot.qr_gen import parse_amount_to_kopecks, create_qr
+
 router = Router()
 logger = logging.getLogger(__name__)
 
 class SendSolutionStates(StatesGroup):
     waiting_for_photo = State()
 
+class CreateQRPrice(StatesGroup):
+    waiting_for_price = State()
 
 @router.message(Command(commands=["check_tasks"]), AdminFilter())
 async def check_tasks(message: Message):
@@ -197,14 +201,67 @@ async def accept_task(callback: CallbackQuery, state: FSMContext):
 
         task = await get_task_api(task_id)
         task_user_id = task.get("user_id")
-        await callback.bot.send_message(chat_id=task_user_id, text="📢 Ваша задача принята исполнителем! В скором времени он пришлет решение. "
-                 "Пожалуйста, произведите оплату 💳")
+        await callback.bot.send_message(chat_id=task_user_id, text="📢 Ваша задача принята исполнителем! В скором времени Вам будет выслан QR-код для оплаты,"
+                                                                   " а после оплаты исполнитель приступит к решению. ")
 
+        await state.update_data(current_task_id=task_id)
+        await state.set_state(CreateQRPrice.waiting_for_price)
+        # Отправляем исполнителю инструкцию
+        await callback.message.answer(
+            "💳 Отлично — укажите, пожалуйста, цену за работу (в рублях). "
+            "Примеры: `1500` или `1500.50`.\n\n"
+            "Минимальная сумма: 499.00 ₽.",
+        )
+
+        # При желании можно закрыть "крутилку" callback'а
+        try:
+            await callback.answer()
+        except Exception:
+            pass
 
     except Exception as e:
         logger.error(f"Ошибка при назначении задачи {task_id} пользователю {user_id}: {e}")
         await callback.answer("❌ Ошибка при назначении задачи")
 
+@router.message(CreateQRPrice.waiting_for_price)
+async def receive_price_from_solver(message: Message, state: FSMContext):
+    price = (message.text or "").strip()
+    user_id = message.from_user.id
+
+    check_price = parse_amount_to_kopecks(price)
+
+    if check_price is None:
+        await message.answer("❗ Некорректный формат суммы. Введите, пожалуйста, число: например `1500` или `1500.50`.")
+        return
+
+    if check_price < 49900:
+        await message.answer("Слишком малая сумма. Укажите корректную стоимость.")
+        return
+
+    try:
+        qr = create_qr(price_from_solver=check_price)
+    except Exception as e:
+        logger.exception("Ошибка при создании QR")
+        await message.answer("❌ Ошибка при формировании QR-кода. Попробуйте позже.")
+        await state.clear()
+        return
+
+    data = await state.get_data()
+    task_id = data.get("current_task_id")
+    task = await get_task_api(task_id)
+    task_user_id = task.get("user_id")
+
+    try:
+        input_file = BufferedInputFile(qr.getvalue(), filename="payment_qr.png")
+        await message.bot.send_photo(chat_id=task_user_id, photo = input_file, caption =  f"Пожалуйста, оплатите работу по задаче #{task_id}.\n"
+                    f"Сумма: {check_price/100:.2f} ₽\n" )
+    except Exception:
+        logger.exception("Не удалось отправить QR исполнителю")
+        await message.answer("❌ Не удалось отправить QR-код. Попробуйте позже.")
+        await state.clear()
+        return
+
+    await state.clear()
 @router.callback_query(F.data.startswith("reject_task_"))
 async def reject_task(callback: CallbackQuery):
     """Исполнитель отклоняет задачу"""

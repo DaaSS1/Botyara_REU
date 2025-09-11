@@ -1,1 +1,52 @@
 .env
+# -----------------------
+# Python
+# -----------------------
+*.py[cod]
+__pycache__/
+*.pyo
+*.pyd
+*.pyc
+
+# -----------------------
+# Virtual environment
+# -----------------------
+venv/
+ENV/
+env/
+.venv/
+
+# -----------------------
+# Environment variables
+# -----------------------
+.env
+.env.*
+
+# -----------------------
+# Database files
+# -----------------------
+*.db
+*.sqlite3
+
+# -----------------------
+# Logs
+# -----------------------
+*.log
+
+# -----------------------
+# IDEs / Editors
+# -----------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# -----------------------
+# macOS
+# -----------------------
+.DS_Store
+
+# -----------------------
+# aiogram / Telegram bot specifics
+# -----------------------
+*.session   # если используешь aiogram session storage
