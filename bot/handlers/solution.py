@@ -252,9 +252,16 @@ async def receive_price_from_solver(message: Message, state: FSMContext):
     task_user_id = task.get("user_id")
 
     try:
-        input_file = BufferedInputFile(qr.getvalue(), filename="payment_qr.png")
-        await message.bot.send_photo(chat_id=task_user_id, photo = input_file, caption =  f"Пожалуйста, оплатите работу по задаче #{task_id}.\n"
-                    f"Сумма: {check_price/100:.2f} ₽\n" )
+    #     #input_file = BufferedInputFile(qr.getvalue(), filename="payment_qr.png")
+    #     # await message.bot.send_photo(chat_id=task_user_id, photo = input_file, caption =  f"Пожалуйста, оплатите работу по задаче #{task_id} в течение 2-х часов.\n"
+    #     #                                                                                   "Для этого скачайте изображение QR-кода, перейдите в приложение своего банка и выберите способ оплаты по QR-коду, "
+    #     #                                                                                   "далее вставьте скачанное изображение. Готово!"
+    #     #             f"Сумма: {check_price/100:.2f} ₽\n" )
+        await message.bot.send_message(chat_id=task_user_id, text=f"Пожалуйста, оплатите работу по задаче #{task_id} в течение 2-х часов.\n"
+                                                                    "Для этого воспользуйтесь номерами карт, удобными для Вас:\n"
+                                                                    "\n2200700482229167 Т-банк\n"
+                                                                    "\n2200154502429771 Альфа-банк\n"
+                                                                    f"\nСумма: {check_price/100:.2f} ₽\n")
     except Exception:
         logger.exception("Не удалось отправить QR исполнителю")
         await message.answer("❌ Не удалось отправить QR-код. Попробуйте позже.")

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api import users, tasks, solutions, payments, ai
+from app.api import users, tasks, solutions
 
 app = FastAPI()
 

@@ -1,14 +1,12 @@
 import qrcode
 from io import BytesIO
-from PIL import Image
-from IPython.display import display
-from app.core.config import PayeeINN, PersonalAcc, CorrespAcc
+from config import PayeeINN, PersonalAcc, CorrespAcc
 import re
 # Данные фирмы
 
 def create_qr(price_from_solver: int):
     firm = {
-        "urname": "Задачи в тапках",
+        "urname": "Горбенко Станислав Игоревич",
         "rs": PersonalAcc,   # расчётный счёт
         "bank": "Т-Банк",
         "bik": "044525974",
@@ -17,7 +15,6 @@ def create_qr(price_from_solver: int):
         "kpp": "771301001"
     }
 
-    qr_s = 2500  # сумма в копейках (например, 25.00 руб. = 2500 => 25 руб.)
     purpose = "Оплата заказа "
     service_id = 1
 
@@ -26,7 +23,7 @@ def create_qr(price_from_solver: int):
         f"ST00012|Name={firm['urname']}"
         f"|PersonalAcc={firm['rs']}|BankName={firm['bank']}"
         f"|BIC={firm['bik']}|CorrespAcc={firm['ks']}"
-        f"|PayeeINN={firm['inn']}|KPP={firm['kpp']}"
+        f"|PayeeINN={firm['inn']}"
         f"|Sum={price_from_solver}|Purpose={purpose}|Contract={service_id}"
     )
 

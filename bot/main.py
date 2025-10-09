@@ -1,9 +1,9 @@
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 import asyncio
-from bot.handlers import start, tasks, solution
-from bot.middlewares import AlbumMiddleware
-from app.core.config import BOT_TOKEN
+from handlers import start, tasks, solution
+from middlewares import AlbumMiddleware
+from config import BOT_TOKEN
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums.parse_mode import ParseMode
 
