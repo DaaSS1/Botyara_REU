@@ -1,11 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeyboardButton, KeyboardButton
 
 
-async def get_main_menu()-> InlineKeyboardMarkup:
+async def get_main_menu() -> InlineKeyboardMarkup:
     create_task = InlineKeyboardButton(text="📋 Создать заявку", callback_data="create_task")
-    about_us = InlineKeyboardButton(text="ℹ️ О нас", callback_data="about_us", url="https://t.me/REU_Help_Students")
-    links = InlineKeyboardButton(text="Полезные ссылки", callback_data="links", url = "https://t.me/REU_Help_Students")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[create_task], [about_us], [links]])
+    prices_btn = InlineKeyboardButton(text="💵 Прайс", callback_data="show_prices")
+    about_us = InlineKeyboardButton(text="ℹ️ О нас", url="https://t.me/REU_Help_Students")
+    links = InlineKeyboardButton(text="🔗 Полезные ссылки", url="https://t.me/REU_Help_Students")
+    # Прайс ставим перед большим текстом — кнопки видны сразу
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [create_task],
+        [prices_btn],
+        [about_us],
+        [links],
+    ])
     return keyboard
 
 # При нажатии "Положить задачу в тапки":
@@ -14,6 +21,20 @@ async def get_main_menu()-> InlineKeyboardMarkup:
 # "Отправьте текст задачи или прикрепите файл (PDF/фото)"
 #
 # Кнопки быстрого выбора предмета:
+async def big_text_with_back(back_cb: str) -> InlineKeyboardMarkup:
+    """
+    back_cb - callback_data для кнопки "Назад"
+    обычно back_cb: 'back_to_main' или 'back_to_task'
+    """
+    price = InlineKeyboardButton(text="💵 Прайс", callback_data="show_prices")
+    back = InlineKeyboardButton(text="⬅️ Назад", callback_data=back_cb)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[price], [back]])
+    return keyboard
+
+async def prices_back_keyboard(back_cb: str) -> InlineKeyboardMarkup:
+    back = InlineKeyboardButton(text="⬅️ Назад", callback_data=back_cb)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[back]])
+    return keyboard
 
 async def set_subject() -> InlineKeyboardMarkup:
     math_button = InlineKeyboardButton(text="Высшая математика", callback_data='math')

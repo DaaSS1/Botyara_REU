@@ -5,7 +5,7 @@ import httpx
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-API_URL = "http://localhost:80"  # Адрес сервера FastAPI
+API_URL = "http://127.0.0.1:8000"  # Адрес сервера FastAPI
 
 # ---------- TASKS ----------
 async def _handle_response(resp: httpx.Response, context: str = ""):

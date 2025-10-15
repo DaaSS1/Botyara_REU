@@ -6,6 +6,7 @@ from app.schemas.tasks import TaskCreate, TaskStatusUpdate, TaskResponse
 from app.core.crud import get_task, get_active_task, create_task, update_task_status, get_tasks_by_user, get_tasks, \
     get_available_tasks_crud, assign_task_to_solver_crud, delete_task
 import logging
+from app.models.users import Users
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

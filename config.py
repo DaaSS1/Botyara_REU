@@ -22,7 +22,7 @@ DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 
 DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
-
+REDIS_URL = os.getenv("REDIS_URL")
 PersonalAcc = os.getenv("PersonalAcc")
 CorrespAcc = os.getenv("CorrespAcc")
 PayeeINN = os.getenv("PayeeINN")

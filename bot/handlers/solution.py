@@ -4,13 +4,14 @@ from aiogram.filters import Command
 import logging
 from bot.admin_filter import AdminFilter
 from bot.api_client import get_user_api, get_available_tasks_api, assign_task_to_solver_api, create_solution_api, \
-    get_task_api
+    get_task_api, create_user_api
 from bot.keyboards import create_task_list_keyboard, create_task_choice_keyboard
 import re
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State,StatesGroup
 from pathlib import Path
 from bot.qr_gen import parse_amount_to_kopecks, create_qr
+from config import ADMIN_IDS
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -27,30 +28,54 @@ async def check_tasks(message: Message):
     user_id = message.from_user.id
 
     try:
-        # Проверяем, что пользователь существует и является исполнителем
         user = await get_user_api(user_id)
-        if not user:
-            await message.answer("❌ Вы не зарегистрированы в системе")
-            return
-
-        await message.answer("🔍 Ищу доступные задачи...")
-
-        # Получаем доступные задачи
-        available_tasks = await get_available_tasks_api()
-
-        if not available_tasks:
-            await message.answer("📭 Нет доступных задач на данный момент")
-            return
-
-        # Показываем список задач
-        await message.answer(
-            f"📋 Найдено {len(available_tasks)} доступных задач:",
-            reply_markup=await create_task_list_keyboard(available_tasks)
-        )
-
     except Exception as e:
-        logger.error(f"Ошибка при получении задач для пользователя {user_id}: {e}")
+        logger.warning(f"get_user_api failed for {user_id}: {e}")
+        user = None
+
+    # Если пользователя нет в БД — пробуем автоматически зарегистрировать по .env
+    if not user:
+        if user_id in ADMIN_IDS:
+            role = "solver"
+        elif user_id in ADMIN_IDS:
+            role = "admin"
+        else:
+            role = "student"
+        try:
+            user = await create_user_api({
+                "tg_user_id": user_id,
+                "tg_name": message.from_user.username or "unknown",
+                "role": role,
+                "high_school": "РЭУ",
+                "year": 1
+            })
+            logger.info(f"Авто-регистрация пользователя {user_id} с ролью {role}")
+        except Exception as e:
+            logger.error(f"Не удалось автоматически зарегистрировать пользователя {user_id}: {e}")
+            await message.answer("❌ Вы не зарегистрированы в системе. Введите /start.")
+            return
+
+    # Проверяем роль
+    if user.get("role") != "solver" and user_id not in ADMIN_IDS:
+        await message.answer("⛔ Команда доступна только исполнителям.")
+        return
+
+    await message.answer("🔍 Ищу доступные задачи...")
+    try:
+        available_tasks = await get_available_tasks_api()
+    except Exception as e:
+        logger.error(f"Ошибка при получении доступных задач: {e}")
         await message.answer("❌ Ошибка при получении задач. Попробуйте позже.")
+        return
+
+    if not available_tasks:
+        await message.answer("📭 Нет доступных задач на данный момент")
+        return
+
+    await message.answer(
+        f"📋 Найдено {len(available_tasks)} доступных задач:",
+        reply_markup=await create_task_list_keyboard(available_tasks)
+    )
 
 @router.callback_query(F.data == "new_tasks")
 async def show_available_tasks(callback: CallbackQuery):

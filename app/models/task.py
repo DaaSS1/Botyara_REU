@@ -1,10 +1,10 @@
-from sqlalchemy import Column, Integer, CHAR, String, TIMESTAMP, TEXT, JSON, ForeignKey
+from sqlalchemy import Column, BigInteger,Integer, CHAR, String, TIMESTAMP, TEXT, JSON, ForeignKey
 from app.core.database import Base
 
 class Tasks(Base):
     __tablename__ = "tasks"
     task_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.tg_user_id"), nullable= False)  # Будем хранить tg_user_id напрямую
+    user_id = Column(BigInteger, ForeignKey("users.tg_user_id"), nullable= False)  # Будем хранить tg_user_id напрямую
     problem_text = Column(TEXT)
     subject = Column(String)
     solver_id = Column(Integer, nullable=True)

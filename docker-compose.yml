@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    container_name: "botyara"
+    restart: unless-stopped
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    networks:
+      - botnet
+    command:
+      - sh -c "uvicorn app.main:app --host 0.0.0.0 --port 80 & python bot/main.py"
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - botnet
+
+networks:
+  botnet:
+    driver: bridge
